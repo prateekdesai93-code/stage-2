@@ -17,6 +17,20 @@ A single-file tool for Olympic Paints: drop in the outbound **Batch Transfer PDF
 
 The app opens with a small labeled **example batch** so you can see the layout before adding real data — press "Clear example & start fresh" (or just drop your first real PDF, which clears it automatically).
 
+## Batches To Make
+
+This is the section that turns "what went out" into "what to run." For every product, it adds up demand across *all* its pack sizes — 20L, 5L, 1L, 500ML, even oddball cartons like `12X750ML` — converted to a single litre (or kg) total. It then divides that by the product's standard batch size and rounds up, so you get a clean "make N batches" plus how much surplus that leaves you.
+
+It only works for a product once you've told it that product's batch size. Open **"Batch sizes (from your BOM)"** and add one line per product:
+
+```
+Decor Cream = 1500 L
+Decor White = 1500 L
+Oxide Black = 3000 KG
+```
+
+Only `Decor Cream` and `Decor White` are pre-filled, from what you told me directly — everything else is left for you to add from your live Odoo BOM quantities, on purpose, rather than guessed. Any product without a batch size on file just gets listed as "no batch size on file" instead of a wrong number.
+
 ## Putty vs. Paint — how it decides
 
 A product line is filed under **Putty Department** if its name contains any of these words (case-insensitive):
