@@ -282,6 +282,11 @@
   // Anything not in this list didn't have a clean, unambiguous quantity
   // (a genuine gap, a unit anomaly, or two conflicting quantities in Odoo)
   // -- add those yourself below once you've checked Odoo, same as before.
+  // 268 batch sizes loaded from your BOM Excel (Olympic_Paints_BOM_Batch_Sizes v4),
+  // read straight off your Odoo screenshots plus the naming fixes you confirmed against
+  // real Batch Transfer PDFs -- real numbers, not guesses. Anything not in this list
+  // didn't have a clean, unambiguous quantity (a genuine gap, or two conflicting
+  // quantities in Odoo) -- add those yourself below once you've checked Odoo.
   var DEFAULT_BATCH_SIZES = [
     "Brown Oxide = 3000 KG",
     "Distemper Green = 2030 KG",
@@ -353,19 +358,18 @@
     "Master Decorators White = 1300 L",
     "High Gloss Enamel Black = 1115 L",
     "Q.D Oxide Primer Red = 1096 L",
-    "Roof Paint Red = 1087 L",
-    "Roof Paint Green = 1087 L",
-    "Roof Paint Black = 1087 L",
-    "Roof Paint Albany = 1087 L",
-    "Roof Paint Emu Green = 1087 L",
-    "Roof Paint Grey = 1087 L",
-    "Roof Paint Burgundy = 1087 L",
-    "Roof Paint Brown = 1087 L",
-    "Roof Paint Terracotta = 1087 L",
-    "Roof Paint Ocean Blue = 1087 L",
+    "Universal Roof Red = 1087 L",
+    "Universal Roof Green = 1087 L",
+    "Universal Roof Black = 1087 L",
+    "Universal Roof Albany = 1087 L",
+    "Universal Roof Emu Green = 1087 L",
+    "Universal Roof Grey = 1087 L",
+    "Universal Roof Burgundy = 1087 L",
+    "Universal Roof Brown = 1087 L",
+    "Universal Roof Terracotta = 1087 L",
+    "Universal Roof Ocean Blue = 1087 L",
     "High Gloss Enamel White = 1056 L",
     "Waterbased QD Primer = 1055 L",
-    "Q.D Grey Oxide Primer Grey = 1038 L",
     "Varnish Dark Oak = 1026 L",
     "Pick n Save Peach = 1024 L",
     "High Gloss Enamel Golden Brown = 1013 L",
@@ -379,6 +383,7 @@
     "Varnish Mahogany = 900 L",
     "Varnish Copal = 898 L",
     "Varnish Light Oak = 898 L",
+    "Univ Undercoat White = 889 L",
     "All in One Primer = 862 L",
     "Ultimate Shine Golden Brown = 815 L",
     "Eggshell Enamel Cream = 775 L",
@@ -407,6 +412,7 @@
     "Suburban Bliss Ponytail = 688 L",
     "High Gloss Enamel Light Brown = 675 L",
     "3 in 1 QD Bronze = 663 L",
+    "Ultimate Shine Silver = 660 L",
     "Q.D Enamel Bronze = 650 L",
     "Rugged Beauty Vanilla White = 649 L",
     "Rugged Beauty Ponytail = 649 L",
@@ -433,7 +439,6 @@
     "3 in 1 Roof Paint Burgundy = 607 L",
     "3 in 1 Roof Paint Brown = 607 L",
     "3 in 1 Roof Paint Charcoal = 607 L",
-    "Q.D Enamel Grey = 606 L",
     "Ultimate Shine Orange = 605 L",
     "Rugged Beauty Jaipur = 603 L",
     "Rugged Beauty Wild Iris = 602 L",
@@ -552,9 +557,38 @@
     "Spirit of Salt = 210 KG",
     "Etch Primer = 139 L"
   ];
-  var LS_BATCHSIZES = "restockledger.batchsizes.v3";
+  var LS_BATCHSIZES = "restockledger.batchsizes.v4";
   var LS_BATCHES  = "restockledger.batches.v1";
   var LS_SEEDED   = "restockledger.seeded.v1";
+
+  // Odoo prints some colors as an abbreviation on the Batch Transfer PDF
+  // (e.g. "S Red") but the BOM/batch-size list uses the full color name
+  // ("Signal Red") -- or the same product has genuinely two different
+  // names in Odoo (e.g. "Liberty Pva Cream" / "Eclipse Pva Cream"). This
+  // table folds every known alias onto one canonical name BEFORE the
+  // product is grouped or looked up, so both spellings count as the same
+  // product instead of splitting demand across two rows. Confirmed with
+  // the user directly; add more pairs here as new ones turn up.
+  var NAME_ALIASES = {
+    "high gloss enamel s blue":   "High Gloss Enamel Summer Blue",
+    "high gloss enamel s green":  "High Gloss Enamel Spring Green",
+    "high gloss enamel s red":    "High Gloss Enamel Signal Red",
+    "high gloss enamel p brown":  "High Gloss Enamel PWD Brown",
+    "high gloss enamel pwd brown":"High Gloss Enamel PWD Brown",
+    "high gloss enamel g brown":  "High Gloss Enamel Golden Brown",
+    "high gloss enamel b green":  "High Gloss Enamel Brilliant Green",
+    "high gloss enamel br green": "High Gloss Enamel Brilliant Green",
+    "high gloss enamel b yellow": "High Gloss Enamel Bright Yellow",
+    "high gloss enamel br yellow":"High Gloss Enamel Bright Yellow",
+    "q.d enamel s red":           "Q.D Enamel Signal Red",
+    "qd enamel s red":            "Q.D Enamel Signal Red",
+    "liberty pva cream":          "Eclipse Pva Cream",
+    "liberty pva white":          "Eclipse Pva White"
+  };
+  function canonicalizeProductName(name){
+    var key = (name || "").trim().toLowerCase();
+    return NAME_ALIASES[key] || name;
+  }
 
   var EXAMPLE_BATCH = {
     id: "example-1",
@@ -571,7 +605,7 @@
       { sku: "139402", name: "Decor Cream", size: "20L", qty: 80 },
       { sku: "139403", name: "Decor Cream", size: "5L", qty: 33 },
       { sku: "299721", name: "High Gloss Enamel Black", size: "1L", qty: 20 },
-      { sku: "299871", name: "High Gloss Enamel S Red", size: "5L", qty: 6 },
+      { sku: "299871", name: canonicalizeProductName("High Gloss Enamel S Red"), size: "5L", qty: 6 },
       { sku: "419781", name: "Varnish Copal", size: "1L", qty: 10 }
     ]
   };
@@ -728,7 +762,7 @@
         var qty = parseFloat(m[3]);
         if (!isFinite(qty)) continue;
         var ns = splitNameSize(m[2]);
-        lines.push({ sku: sku, name: ns.name, size: ns.size, qty: qty });
+        lines.push({ sku: sku, name: canonicalizeProductName(ns.name), size: ns.size, qty: qty });
       }
     }
 
