@@ -1,0 +1,1152 @@
+<title>Restock Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ink:#121210; --panel:#1c1b18; --panel-2:#262420; --panel-3:#302d27;
+    --line:#3a362e; --line-soft:#2a2721;
+    --paper:#f4efe4; --muted:#a89e88; --muted-2:#7c7362;
+    --gold:#f0b429; --gold-ink:#241a00;
+    --paint:#6b9bf2; --paint-ink:#08132a; --paint-bg:#141d2c;
+    --warn:#c98a4e; --warn-ink:#2a1a08; --warn-bg:#2c2115;
+    --good:#6ec978; --bad:#e2645a; --bad-bg:#2c1512;
+    --shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --ink:#f4efe4; --panel:#ffffff; --panel-2:#f1ede2; --panel-3:#e9e3d4;
+      --line:#ddd5c0; --line-soft:#eae4d5;
+      --paper:#211d14; --muted:#6b6250; --muted-2:#8b8270;
+      --gold:#b9860f; --gold-ink:#ffffff;
+      --paint:#2f5fc7; --paint-ink:#ffffff; --paint-bg:#e2eaf9;
+      --warn:#a3662b; --warn-ink:#ffffff; --warn-bg:#f4e6d4;
+      --good:#2f8f45; --bad:#c23f36; --bad-bg:#fbe4e1;
+      --shadow: 0 8px 24px rgba(30,25,10,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#121210; --panel:#1c1b18; --panel-2:#262420; --panel-3:#302d27;
+    --line:#3a362e; --line-soft:#2a2721;
+    --paper:#f4efe4; --muted:#a89e88; --muted-2:#7c7362;
+    --gold:#f0b429; --gold-ink:#241a00;
+    --paint:#6b9bf2; --paint-ink:#08132a; --paint-bg:#141d2c;
+    --warn:#c98a4e; --warn-ink:#2a1a08; --warn-bg:#2c2115;
+    --good:#6ec978; --bad:#e2645a; --bad-bg:#2c1512;
+    --shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--ink); color:var(--paper);
+    font-family:"IBM Plex Sans", system-ui, sans-serif;
+    padding-inline:16px; padding-block:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:"Big Shoulders Display", system-ui, sans-serif; text-transform:uppercase; letter-spacing:.02em; text-wrap:balance; margin:0;}
+  .mono{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+  a{color:inherit;}
+  button{font-family:inherit;}
+
+  #app{max-width:960px; margin:0 auto; padding-bottom:120px;}
+
+  /* ---------- header ---------- */
+  .topbar{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+    background:linear-gradient(var(--ink) 88%, transparent);
+    padding-top:18px; padding-bottom:10px; margin-bottom:6px;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:34px; height:34px; border-radius:50%; flex:none;
+    background:radial-gradient(circle at 32% 28%, #ffe08a, var(--gold) 60%, #b9860f 100%);
+    box-shadow: inset 0 -3px 6px rgba(0,0,0,.25);
+  }
+  .brand h1{font-size:26px; font-weight:800; line-height:1;}
+  .brand .tag{font-size:11.5px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-top:2px;}
+  .subtitle{margin-top:10px; font-size:13.5px; color:var(--muted); max-width:64ch; line-height:1.5;}
+
+  /* ---------- intake ---------- */
+  .dropzone{
+    margin-top:16px; border:1.5px dashed var(--line); border-radius:14px;
+    padding:20px 16px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    text-align:center; background:var(--panel); transition:border-color .15s, background .15s;
+  }
+  .dropzone.drag{border-color:var(--gold); background:var(--panel-2);}
+  .dropzone svg{width:26px; height:26px; stroke:var(--gold); flex:none;}
+  .dropzone strong{font-size:14.5px;}
+  .dropzone span{font-size:12.5px; color:var(--muted-2);}
+  .btn{
+    appearance:none; border:none; cursor:pointer; border-radius:9px;
+    font-weight:600; font-size:13.5px; padding:10px 16px;
+    display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+  }
+  .btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .btn-gold{background:var(--gold); color:var(--gold-ink);}
+  .btn-ghost{background:var(--panel-2); color:var(--paper); border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--panel-3);}
+  .btn-line{background:transparent; color:var(--muted); border:1px solid var(--line); font-size:12.5px; padding:7px 12px;}
+  .btn[disabled]{opacity:.45; cursor:not-allowed;}
+  input[type=file]{display:none;}
+
+  /* ---------- batch chips ---------- */
+  .batches{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+  .chip{
+    display:flex; align-items:center; gap:8px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:8px 10px 8px 12px;
+    font-size:12.5px; max-width:100%;
+  }
+  .chip.err{border-color:var(--bad); background:var(--bad-bg);}
+  .chip .dot{width:7px; height:7px; border-radius:50%; flex:none;}
+  .chip.ok .dot{background:var(--good);}
+  .chip.err .dot{background:var(--bad);}
+  .chip .meta{display:flex; flex-direction:column; line-height:1.3; min-width:0;}
+  .chip .meta b{font-family:"IBM Plex Mono",monospace; font-size:12.5px;}
+  .chip .meta small{color:var(--muted-2); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;}
+  .chip .x{
+    appearance:none; background:none; border:none; color:var(--muted); cursor:pointer;
+    font-size:15px; line-height:1; padding:2px 4px; border-radius:6px; flex:none;
+  }
+  .chip .x:hover{color:var(--bad); background:var(--panel-3);}
+
+  /* ---------- settings ---------- */
+  details.settings{margin-top:16px; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  details.settings > summary{
+    list-style:none; cursor:pointer; padding:12px 14px; font-size:13px; font-weight:600;
+    display:flex; align-items:center; justify-content:space-between; color:var(--paper);
+  }
+  details.settings > summary::-webkit-details-marker{display:none;}
+  details.settings > summary .arrow{transition:transform .15s; color:var(--muted);}
+  details.settings[open] > summary .arrow{transform:rotate(90deg);}
+  .settings-body{padding:0 14px 16px; border-top:1px solid var(--line-soft);}
+  .settings-body p{font-size:12px; color:var(--muted); line-height:1.5; margin:12px 0 8px;}
+  textarea{
+    width:100%; min-height:96px; background:var(--panel-2); color:var(--paper);
+    border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    font-family:"IBM Plex Mono", monospace; font-size:12.5px; line-height:1.6; resize:vertical;
+  }
+  .settings-actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .settings-body code.mono{background:var(--panel-3); padding:1px 5px; border-radius:4px; font-size:11.5px;}
+
+  /* ---------- totals ---------- */
+  .totals{display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:8px; margin-top:18px;}
+  .tile{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:12px 10px; text-align:center;
+  }
+  .tile b{display:block; font-family:"IBM Plex Mono",monospace; font-size:22px; font-weight:600;}
+  .tile span{display:block; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); margin-top:2px;}
+
+  /* ---------- ledger ---------- */
+  .dept{margin-top:26px;}
+  .dept-head{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .dept-head h2{font-size:19px; font-weight:700;}
+  .tag{font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:4px 9px; border-radius:999px;}
+  .tag.paint{background:var(--paint-bg); color:var(--paint);}
+  .dept-head .count{font-size:12px; color:var(--muted-2);}
+
+  .ledger-table{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .ledger-table thead th{
+    text-align:left; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted-2); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--line);
+  }
+  .ledger-table tbody td{padding:10px 12px; font-size:13px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+  .ledger-table tbody tr:last-child td{border-bottom:none;}
+  .ledger-table tbody tr:nth-child(even){background:var(--panel-2);}
+  .prod-name{font-weight:600;}
+  .prod-size{color:var(--muted-2); font-size:11.5px; margin-top:1px;}
+  .qty-cell{font-family:"IBM Plex Mono",monospace; white-space:nowrap;}
+  .qty-cell .sum{color:var(--muted-2); font-size:11px;}
+  .batch-refs{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted-2);}
+  .muted-cell{color:var(--muted-2); font-style:italic; font-size:12px;}
+  .empty-row td{text-align:center; color:var(--muted-2); font-size:12.5px; padding:22px;}
+
+  .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+
+  .banner{
+    margin-top:16px; background:var(--warn-bg); border:1px solid var(--warn); color:var(--warn);
+    border-radius:10px; padding:10px 14px; font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .banner button{margin-left:auto;}
+
+  /* ---------- bottom bar ---------- */
+  .bottombar{
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(transparent, var(--ink) 30%);
+  }
+  .bottombar-inner{
+    max-width:960px; margin:0 auto; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; box-shadow:var(--shadow); padding:12px 14px;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .bottombar-info{font-size:12px; color:var(--muted); flex:1; min-width:140px;}
+  .bottombar-info b{color:var(--paper); font-family:"IBM Plex Mono",monospace;}
+  .status-msg{font-size:11.5px; margin-top:2px;}
+  .status-msg.err{color:var(--bad);}
+  .status-msg.ok{color:var(--good);}
+
+  /* ---------- print view (fallback) ---------- */
+  #printReport{display:none;}
+  @media print{
+    #app > *:not(#printReport){display:none !important;}
+    .bottombar{display:none !important;}
+    #printReport{display:block !important;}
+    body{background:#fff; color:#111; padding:0;}
+  }
+  #printReport{font-family:"IBM Plex Sans",sans-serif; color:#111; background:#fff; padding:24px;}
+  #printReport h2{font-family:"Big Shoulders Display",sans-serif; font-size:24px;}
+  #printReport table{width:100%; border-collapse:collapse; margin-top:10px;}
+  #printReport th,#printReport td{border:1px solid #ccc; padding:6px 8px; font-size:11px; text-align:left;}
+  #printReport th{background:#111; color:#fff;}
+
+  @media (max-width:460px){
+    .brand h1{font-size:22px;}
+    .totals{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div>
+        <h1>Restock Ledger</h1>
+        <div class="tag">Olympic Paints &middot; Paint Production Requirement</div>
+      </div>
+    </div>
+    <p class="subtitle">Drop in outbound Batch Transfer PDFs. This consolidates them into one Paint Requirements report — every product, how much was ordered, and exactly how many batches (down to a decimal, since a batch can be scaled) you need to run — ready to generate as a PDF.</p>
+  </div>
+
+  <div id="dropzone" class="dropzone">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+    <strong>Drop Batch Transfer PDFs here</strong>
+    <span>or tap to choose files &middot; you can add more any time</span>
+    <label class="btn btn-gold" for="fileInput" style="margin-top:6px;">Add PDFs</label>
+    <input id="fileInput" type="file" accept="application/pdf" multiple>
+  </div>
+
+  <div id="batchList" class="batches"></div>
+
+  <div id="exampleBanner" class="banner" hidden>
+    <span>Showing example data so you can see how this works.</span>
+    <button class="btn btn-line" id="clearExampleBtn" type="button">Clear example &amp; start fresh</button>
+  </div>
+
+  <details class="settings">
+    <summary>Batch sizes (from your BOM) <span class="arrow">&#8250;</span></summary>
+    <div class="settings-body">
+      <p>One product per line: <code class="mono">Name = Size Unit</code> &mdash; e.g. <code class="mono">Decor Cream = 1500 L</code> or <code class="mono">Oxide Black = 3000 KG</code>. This is the standard batch quantity from your Bills of Materials. The ledger totals demand across every pack size (20L, 5L, 1L, 500ML&hellip;) into one litre/kg figure per product, then divides by this to tell you <b>exactly</b> how many batches to run &mdash; as a decimal, so <code class="mono">1.18</code> means one full batch plus a scaled-down partial batch (18% of the recipe). Name matching is case-insensitive and must match the product name as it appears in the ledger below. Leave a product out and it just won't get a batch count.</p>
+      <textarea id="batchSizeBox" spellcheck="false"></textarea>
+      <div class="settings-actions">
+        <button class="btn btn-gold" id="saveBatchSizesBtn" type="button">Save batch sizes</button>
+        <button class="btn btn-line" id="resetBatchSizesBtn" type="button">Reset to starter list</button>
+      </div>
+    </div>
+  </details>
+
+  <div id="totals" class="totals"></div>
+
+  <div id="ledger" class="dept"></div>
+
+  <div id="batchPlan" class="dept"></div>
+
+  <div id="printReport"></div>
+</div>
+
+<div class="bottombar">
+  <div class="bottombar-inner">
+    <div class="bottombar-info">
+      <div><b id="lineCount">0</b> line items across <b id="batchCount">0</b> batches</div>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+    <button class="btn btn-line" id="printBtn" type="button">Print / Save as PDF</button>
+    <button class="btn btn-gold" id="generateBtn" type="button">Generate PDF</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     0. CONFIG
+     ============================================================ */
+  var SIZE_ORDER = ["20L","10L","5L","1L","500ML","250ML","50ML"];
+  var PRIMARY_SIZES = ["20L","5L","1L","500ML"];
+  // Starter list only — batch sizes you explicitly told me (Decor Cream, Decor White).
+  // Everything else: add your own via "Batch sizes" below, taken from your live BOM quantities.
+  var DEFAULT_BATCH_SIZES = [
+    "Decor Cream = 1500 L",
+    "Decor White = 1500 L"
+  ];
+  var LS_BATCHSIZES = "restockledger.batchsizes.v2";
+  var LS_BATCHES  = "restockledger.batches.v1";
+  var LS_SEEDED   = "restockledger.seeded.v1";
+
+  var EXAMPLE_BATCH = {
+    id: "example-1",
+    batchNo: "EX001",
+    vehicle: "Example · Hino 1.5 Ton",
+    scheduledDate: "—",
+    fileName: "example-batch.pdf",
+    status: "ok",
+    error: null,
+    isExample: true,
+    lines: [
+      { sku: "139401", name: "Decor White", size: "20L", qty: 75 },
+      { sku: "139816", name: "Decor White", size: "5L", qty: 10 },
+      { sku: "139402", name: "Decor Cream", size: "20L", qty: 80 },
+      { sku: "139403", name: "Decor Cream", size: "5L", qty: 33 },
+      { sku: "299721", name: "High Gloss Enamel Black", size: "1L", qty: 20 },
+      { sku: "299871", name: "High Gloss Enamel S Red", size: "5L", qty: 6 },
+      { sku: "419781", name: "Varnish Copal", size: "1L", qty: 10 }
+    ]
+  };
+
+  /* ============================================================
+     1. STATE
+     ============================================================ */
+  var state = {
+    batchSizeLines: loadBatchSizeLines(),
+    batches: [],   // {id,batchNo,vehicle,scheduledDate,fileName,status,error,lines[],isExample}
+  };
+
+  function loadBatchSizeLines(){
+    try{
+      var raw = localStorage.getItem(LS_BATCHSIZES);
+      if (raw){ var arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; }
+    }catch(e){}
+    return DEFAULT_BATCH_SIZES.slice();
+  }
+  function saveBatchSizeLines(list){
+    state.batchSizeLines = list;
+    try{ localStorage.setItem(LS_BATCHSIZES, JSON.stringify(list)); }catch(e){}
+  }
+  // "Decor Cream = 1500 L"  ->  { "decor cream": {qty:1500, unit:"L"} }
+  var BATCHSIZE_LINE_RE = /^(.+?)\s*=\s*([\d.]+)\s*(L|LT|KG|LITRE?S?)?\s*$/i;
+  function parseBatchSizeLines(lines){
+    var map = {};
+    lines.forEach(function(line){
+      var m = line.trim().match(BATCHSIZE_LINE_RE);
+      if (!m) return;
+      var name = m[1].trim().toLowerCase();
+      var qty = parseFloat(m[2]);
+      var unitRaw = (m[3] || "L").toUpperCase();
+      var unit = (unitRaw === "KG") ? "KG" : "L";
+      if (name && isFinite(qty) && qty > 0) map[name] = { qty: qty, unit: unit };
+    });
+    return map;
+  }
+  function persistBatches(){
+    try{
+      var real = state.batches.filter(function(b){ return !b.isExample; });
+      localStorage.setItem(LS_BATCHES, JSON.stringify(real));
+      localStorage.setItem(LS_SEEDED, "1");
+    }catch(e){}
+  }
+  function loadBatches(){
+    try{
+      var raw = localStorage.getItem(LS_BATCHES);
+      if (raw){
+        var arr = JSON.parse(raw);
+        if (Array.isArray(arr)) return arr;
+      }
+    }catch(e){}
+    return null;
+  }
+
+  (function boot(){
+    var saved = loadBatches();
+    var seeded = false;
+    try{ seeded = localStorage.getItem(LS_SEEDED) === "1"; }catch(e){}
+    if (saved && saved.length){
+      state.batches = saved;
+    } else if (!seeded){
+      state.batches = [copyExample()];
+      document.getElementById("exampleBanner").hidden = false;
+    }
+  })();
+
+  function copyExample(){
+    return JSON.parse(JSON.stringify(EXAMPLE_BATCH));
+  }
+
+  /* ============================================================
+     2. PACK SIZE -> BASE VOLUME/WEIGHT
+     "20L" -> 20 L. "500ML" -> 0.5 L. "12X750ML" -> 9 L (12 x 0.75L).
+     "5KG" -> 5 KG. "24X500GM" -> 12 KG.
+     ============================================================ */
+  var BASE_SIZE_RE = /^(\d+(?:\.\d+)?)(?:X(\d+(?:\.\d+)?))?(ML|GM|KG|L)$/i;
+  function sizeToBase(size){
+    var m = String(size||"").match(BASE_SIZE_RE);
+    if (!m) return null;
+    var n1 = parseFloat(m[1]);
+    var n2 = m[2] ? parseFloat(m[2]) : 1;
+    var unit = m[3].toUpperCase();
+    var total = n1 * n2;
+    if (unit === "L") return { qty: total, unit: "L" };
+    if (unit === "ML") return { qty: total / 1000, unit: "L" };
+    if (unit === "KG") return { qty: total, unit: "KG" };
+    if (unit === "GM") return { qty: total / 1000, unit: "KG" };
+    return null;
+  }
+
+  /* ============================================================
+     3. PDF PARSING (pdf.js, main-thread / fake-worker — no Worker())
+     ============================================================ */
+  var pdfEngineReady = (typeof window.pdfjsLib !== "undefined") && (typeof window.pdfjsWorker !== "undefined");
+
+  async function extractRows(page){
+    var tc = await page.getTextContent();
+    var buckets = [];
+    for (var i=0;i<tc.items.length;i++){
+      var item = tc.items[i];
+      var y = item.transform[5];
+      var x = item.transform[4];
+      var bucket = null;
+      for (var j=0;j<buckets.length;j++){
+        if (Math.abs(buckets[j].y - y) <= 2.2){ bucket = buckets[j]; break; }
+      }
+      if (!bucket){ bucket = {y:y, items:[]}; buckets.push(bucket); }
+      bucket.items.push({x:x, str:item.str});
+    }
+    buckets.sort(function(a,b){ return b.y - a.y; });
+    return buckets.map(function(b){
+      b.items.sort(function(a,c){ return a.x - c.x; });
+      return b.items.map(function(it){ return it.str; }).join(" ").replace(/\s+/g," ").trim();
+    }).filter(Boolean);
+  }
+
+  var LINE_RE = /^\[([^\]]+)\]\s+(.+?)\s+([\d.]+)\s+Each\s+(\S*OP\/?OUT\/?\d+\S*)\s*$/i;
+  var SIZE_RE = /^(.*\S)\s+(\d+(?:\.\d+)?(?:X\d+(?:\.\d+)?)?(?:ML|GM|KG|L))$/i;
+
+  function splitNameSize(nameSize){
+    var m = nameSize.match(SIZE_RE);
+    if (m) return { name: m[1].trim(), size: m[2].toUpperCase() };
+    return { name: nameSize.trim(), size: "—" };
+  }
+
+  async function parseBatchPdf(file){
+    var buf = await file.arrayBuffer();
+    var loadingTask = window.pdfjsLib.getDocument({ data: buf });
+    var pdf = await loadingTask.promise;
+
+    var batchNo = null, vehicle = null, scheduledDate = null;
+    var lines = [];
+
+    for (var p=1; p<=pdf.numPages; p++){
+      var page = await pdf.getPage(p);
+      var rows = await extractRows(page);
+      var fullText = rows.join(" \n ");
+
+      if (p === 1){
+        var mBatch = fullText.match(/BATCH\/?OUT\/?(\d+)/i);
+        if (mBatch) batchNo = mBatch[1];
+        var mVeh = fullText.match(/Vehicle:\s*([^\n]+?)(?:\s+Vehicle Category|\s*$)/i);
+        if (mVeh) vehicle = mVeh[1].trim();
+        var mDate = fullText.match(/(\d{2}\/\d{2}\/\d{4}[^\n]*)/);
+        if (mDate) scheduledDate = mDate[1].trim();
+      }
+
+      for (var r=0;r<rows.length;r++){
+        var m = rows[r].match(LINE_RE);
+        if (!m) continue;
+        var sku = m[1];
+        var qty = parseFloat(m[3]);
+        if (!isFinite(qty)) continue;
+        var ns = splitNameSize(m[2]);
+        lines.push({ sku: sku, name: ns.name, size: ns.size, qty: qty });
+      }
+    }
+
+    if (!batchNo && lines.length === 0){
+      throw new Error("Doesn't look like an Odoo Batch Transfer PDF (no batch number or product lines found).");
+    }
+
+    return {
+      id: "b_" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
+      batchNo: batchNo || "?",
+      vehicle: vehicle || "—",
+      scheduledDate: scheduledDate || "—",
+      fileName: file.name,
+      status: "ok",
+      error: null,
+      isExample: false,
+      lines: lines
+    };
+  }
+
+  /* ============================================================
+     4. CONSOLIDATION
+     ============================================================ */
+  function buildModel(){
+    var okBatches = state.batches.filter(function(b){ return b.status === "ok"; });
+    var map = {}; // key -> {name,size,qty,contrib:[{batchNo,qty}],batchNos:[]}
+
+    okBatches.forEach(function(b){
+      b.lines.forEach(function(ln){
+        var key = ln.name + "||" + ln.size;
+        if (!map[key]){
+          map[key] = { name: ln.name, size: ln.size, qty: 0, contrib: [], batchNos: [] };
+        }
+        map[key].qty += ln.qty;
+        map[key].contrib.push({ batchNo: b.batchNo, qty: ln.qty });
+        if (map[key].batchNos.indexOf(b.batchNo) === -1) map[key].batchNos.push(b.batchNo);
+      });
+    });
+
+    var rows = Object.keys(map).map(function(k){ return map[k]; });
+
+    function sizeRank(sz){
+      var i = SIZE_ORDER.indexOf(sz);
+      return i === -1 ? SIZE_ORDER.length : i;
+    }
+    rows.sort(function(a,b){
+      if (a.name !== b.name) return a.name.localeCompare(b.name);
+      return sizeRank(a.size) - sizeRank(b.size);
+    });
+
+    var totals = {};
+    rows.forEach(function(r){
+      totals[r.size] = (totals[r.size] || 0) + r.qty;
+    });
+
+    var batchPlan = buildBatchPlan(rows);
+
+    return { batches: okBatches, rows: rows, totals: totals, rowCount: rows.length, batchPlan: batchPlan };
+  }
+
+  // Collapse every pack size of a product into one demand total (litres or kg),
+  // then divide by the batch size on file. The result is a DECIMAL — a batch
+  // can be scaled down proportionally, so 1.18 means "1 full batch, plus a
+  // partial batch mixed at 18% of the recipe" rather than always rounding up
+  // to a whole extra batch.
+  function buildBatchPlan(rows){
+    var byName = {}; // lower name -> {name,unit,demand,skipped:[]}
+    rows.forEach(function(r){
+      var base = sizeToBase(r.size);
+      var key = r.name.toLowerCase();
+      if (!byName[key]){
+        byName[key] = { name: r.name, unit: null, demand: 0, skipped: [] };
+      }
+      var entry = byName[key];
+      if (base){
+        if (!entry.unit) entry.unit = base.unit;
+        if (base.unit === entry.unit){
+          entry.demand += base.qty * r.qty;
+        } else {
+          entry.skipped.push(r.size + " (mixed unit)");
+        }
+      } else {
+        entry.skipped.push(r.size || "unspecified");
+      }
+    });
+
+    var sizeMap = parseBatchSizeLines(state.batchSizeLines);
+    var plan = Object.keys(byName).map(function(k){
+      var e = byName[k];
+      var ref = sizeMap[k];
+      var row = {
+        name: e.name, unit: e.unit || (ref ? ref.unit : "L"),
+        demand: e.demand, skipped: e.skipped, batchSize: ref ? ref.qty : null,
+        batches: null, fullBatches: null, partialQty: null, partialFrac: null
+      };
+      if (ref && ref.unit === row.unit && e.demand > 0){
+        var raw = e.demand / ref.qty;
+        row.batches = Math.round(raw * 100) / 100;
+        row.fullBatches = Math.floor(row.batches + 1e-9);
+        row.partialQty = Math.max(0, e.demand - row.fullBatches * ref.qty);
+        row.partialFrac = ref.qty > 0 ? (row.partialQty / ref.qty) : 0;
+      }
+      return row;
+    }).filter(function(r){ return r.demand > 0; });
+
+    plan.sort(function(a,b){ return a.name.localeCompare(b.name); });
+    return plan;
+  }
+
+  function fmtQty(n){
+    var rounded = Math.round(n * 100) / 100;
+    return (rounded % 1 === 0) ? String(rounded) : String(rounded);
+  }
+
+  // Batch counts always show 2 decimals when fractional (1.18), clean when whole (2).
+  function fmtBatches(n){
+    var rounded = Math.round(n * 100) / 100;
+    if (Math.abs(rounded - Math.round(rounded)) < 1e-9) return String(Math.round(rounded));
+    return rounded.toFixed(2);
+  }
+
+  function mathString(contrib){
+    if (contrib.length === 1) return fmtQty(contrib[0].qty);
+    var sum = contrib.reduce(function(s,c){ return s + c.qty; }, 0);
+    return contrib.map(function(c){ return fmtQty(c.qty); }).join("+") + " = " + fmtQty(sum);
+  }
+
+  // "1 full batch + 265 L (0.18× a batch)" / "2 full batches, no partial needed" /
+  // "a partial batch only — 265 L (0.18× a batch)"
+  function batchBreakdown(r){
+    if (r.partialQty > 0.01){
+      if (r.fullBatches > 0){
+        return r.fullBatches + " full batch" + (r.fullBatches===1?"":"es") + " + " +
+          fmtQty(r.partialQty) + " " + r.unit + " (" + fmtBatches(r.partialFrac) + "&times; a batch)";
+      }
+      return "a partial batch only &mdash; " + fmtQty(r.partialQty) + " " + r.unit +
+        " (" + fmtBatches(r.partialFrac) + "&times; a batch)";
+    }
+    return r.fullBatches + " full batch" + (r.fullBatches===1?"":"es") + ", no partial needed";
+  }
+
+  /* ============================================================
+     5. RENDER
+     ============================================================ */
+  var els = {
+    dropzone: document.getElementById("dropzone"),
+    fileInput: document.getElementById("fileInput"),
+    batchList: document.getElementById("batchList"),
+    exampleBanner: document.getElementById("exampleBanner"),
+    clearExampleBtn: document.getElementById("clearExampleBtn"),
+    totals: document.getElementById("totals"),
+    ledger: document.getElementById("ledger"),
+    batchPlan: document.getElementById("batchPlan"),
+    batchSizeBox: document.getElementById("batchSizeBox"),
+    saveBatchSizesBtn: document.getElementById("saveBatchSizesBtn"),
+    resetBatchSizesBtn: document.getElementById("resetBatchSizesBtn"),
+    lineCount: document.getElementById("lineCount"),
+    batchCount: document.getElementById("batchCount"),
+    statusMsg: document.getElementById("statusMsg"),
+    generateBtn: document.getElementById("generateBtn"),
+    printBtn: document.getElementById("printBtn"),
+    printReport: document.getElementById("printReport")
+  };
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function renderBatchList(){
+    els.batchList.innerHTML = state.batches.map(function(b){
+      var cls = b.status === "ok" ? "ok" : "err";
+      var subtitle = b.status === "ok"
+        ? (b.lines.length + " lines · " + b.vehicle)
+        : b.error;
+      return '<div class="chip ' + cls + '" data-id="' + b.id + '">' +
+        '<span class="dot"></span>' +
+        '<div class="meta"><b>#' + esc(b.batchNo) + '</b><small>' + esc(subtitle || "") + '</small></div>' +
+        '<button class="x" data-remove="' + b.id + '" title="Remove batch" aria-label="Remove batch">&times;</button>' +
+        '</div>';
+    }).join("");
+  }
+
+  function renderTotals(model){
+    var tiles = PRIMARY_SIZES.map(function(sz){
+      return { label: sz, val: model.totals[sz] || 0 };
+    });
+    var extras = Object.keys(model.totals).filter(function(sz){ return PRIMARY_SIZES.indexOf(sz) === -1; });
+    extras.sort();
+    extras.forEach(function(sz){ tiles.push({ label: sz, val: model.totals[sz] }); });
+
+    if (model.rowCount === 0){
+      els.totals.innerHTML = "";
+      return;
+    }
+    els.totals.innerHTML = tiles.map(function(t){
+      return '<div class="tile"><b>' + fmtQty(t.val) + '</b><span>' + esc(t.label) + '</span></div>';
+    }).join("");
+  }
+
+  function renderLedger(container, rows){
+    if (rows.length === 0){ container.innerHTML = ""; return; }
+    var body = rows.map(function(r){
+      return '<tr>' +
+        '<td><div class="prod-name">' + esc(r.name) + '</div><div class="prod-size">' + esc(r.size) + '</div></td>' +
+        '<td class="qty-cell">' + esc(mathString(r.contrib)) + '</td>' +
+        '<td class="batch-refs">' + r.batchNos.map(function(n){ return "#"+esc(n); }).join(" / ") + '</td>' +
+        '</tr>';
+    }).join("");
+
+    container.innerHTML =
+      '<div class="dept-head"><h2>Paint Requirements</h2>' +
+      '<span class="tag paint">' + rows.length + ' line item' + (rows.length===1?"":"s") + '</span></div>' +
+      '<div class="table-scroll"><table class="ledger-table"><thead><tr>' +
+      '<th>Product</th><th>Quantity ordered</th><th>Batch out #</th>' +
+      '</tr></thead><tbody>' + body + '</tbody></table></div>';
+  }
+
+  function renderBatchPlan(plan){
+    if (!plan.length){ els.batchPlan.innerHTML = ""; return; }
+    var unknownCount = plan.filter(function(r){ return r.batches === null; }).length;
+
+    var body = plan.map(function(r){
+      var known = r.batches !== null;
+      return '<tr>' +
+        '<td><div class="prod-name">' + esc(r.name) + '</div></td>' +
+        '<td class="qty-cell"><b>' + fmtQty(r.demand) + ' ' + r.unit + '</b></td>' +
+        '<td class="qty-cell">' + (r.batchSize !== null ? (fmtQty(r.batchSize) + ' ' + r.unit) : '<span class="muted-cell">not set</span>') + '</td>' +
+        '<td class="qty-cell">' + (known ? ('<b style="color:var(--gold); font-size:16px;">' + fmtBatches(r.batches) + '</b>') : '<span class="muted-cell">&mdash;</span>') + '</td>' +
+        '<td class="batch-refs">' + (known ? batchBreakdown(r) : 'Add a batch size for this product below to get a batch count.') + '</td>' +
+        '</tr>';
+    }).join("");
+
+    els.batchPlan.innerHTML =
+      '<div class="dept-head"><h2>Batches To Make</h2>' +
+      '<span class="tag paint">' + plan.length + ' product' + (plan.length===1?"":"s") + '</span></div>' +
+      '<div class="table-scroll"><table class="ledger-table"><thead><tr>' +
+      '<th>Product</th><th>Total quantity (all pack sizes)</th><th>BOM batch size</th><th>Batches to make</th><th>How to make it</th>' +
+      '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+      (unknownCount
+        ? '<div class="banner" style="margin-top:10px;"><span>' + unknownCount + ' product' + (unknownCount===1?"":"s") +
+          ' above ' + (unknownCount===1?"has":"have") + ' no BOM batch size on file yet, so no batch count &mdash; add them under &ldquo;Batch sizes (from your BOM)&rdquo; above.</span></div>'
+        : '');
+  }
+
+  function render(){
+    renderBatchList();
+    var model = buildModel();
+    renderTotals(model);
+    renderLedger(els.ledger, model.rows);
+    renderBatchPlan(model.batchPlan);
+
+    var errCount = state.batches.filter(function(b){ return b.status==="error"; }).length;
+    els.lineCount.textContent = model.rowCount;
+    els.batchCount.textContent = model.batches.length;
+    els.generateBtn.disabled = model.rowCount === 0;
+    els.printBtn.disabled = model.rowCount === 0;
+    els.statusMsg.textContent = errCount ? (errCount + " file" + (errCount===1?"":"s") + " couldn't be read — remove or re-check them.") : "";
+    els.statusMsg.className = "status-msg" + (errCount ? " err" : "");
+
+    persistBatches();
+    return model;
+  }
+
+  /* ============================================================
+     6. FILE INTAKE
+     ============================================================ */
+  async function handleFiles(fileList){
+    var files = Array.prototype.slice.call(fileList).filter(function(f){
+      return f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    });
+    if (!files.length) return;
+
+    // first real upload clears the example set
+    if (state.batches.some(function(b){ return b.isExample; })){
+      state.batches = [];
+      els.exampleBanner.hidden = true;
+    }
+
+    for (var i=0;i<files.length;i++){
+      var f = files[i];
+      var placeholder = {
+        id: "pending_" + Date.now() + "_" + i, batchNo: "…", vehicle: "", scheduledDate: "",
+        fileName: f.name, status: "loading", error: null, isExample:false, lines: []
+      };
+      state.batches.push(placeholder);
+      render();
+
+      try{
+        if (!pdfEngineReady){
+          throw new Error("PDF engine didn't load — try reloading the page.");
+        }
+        var parsed = await parseBatchPdf(f);
+        if (state.batches.some(function(b){ return b.status==="ok" && b.batchNo===parsed.batchNo; })){
+          parsed.status = "error";
+          parsed.error = "Batch #" + parsed.batchNo + " is already loaded.";
+        }
+        var idx = state.batches.indexOf(placeholder);
+        if (idx !== -1) state.batches[idx] = parsed; else state.batches.push(parsed);
+      }catch(err){
+        placeholder.status = "error";
+        placeholder.error = (err && err.message) ? err.message : "Couldn't read this PDF.";
+        placeholder.batchNo = "—";
+      }
+      render();
+    }
+  }
+
+  els.fileInput.addEventListener("change", function(e){
+    handleFiles(e.target.files);
+    e.target.value = "";
+  });
+  ["dragenter","dragover"].forEach(function(evt){
+    els.dropzone.addEventListener(evt, function(e){ e.preventDefault(); els.dropzone.classList.add("drag"); });
+  });
+  ["dragleave","drop"].forEach(function(evt){
+    els.dropzone.addEventListener(evt, function(e){ e.preventDefault(); els.dropzone.classList.remove("drag"); });
+  });
+  els.dropzone.addEventListener("drop", function(e){
+    if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+  });
+
+  els.batchList.addEventListener("click", function(e){
+    var id = e.target.getAttribute("data-remove");
+    if (!id) return;
+    state.batches = state.batches.filter(function(b){ return b.id !== id; });
+    if (state.batches.length === 0) els.exampleBanner.hidden = true;
+    render();
+  });
+
+  els.clearExampleBtn.addEventListener("click", function(){
+    state.batches = state.batches.filter(function(b){ return !b.isExample; });
+    els.exampleBanner.hidden = true;
+    try{ localStorage.setItem(LS_SEEDED, "1"); }catch(e){}
+    render();
+  });
+
+  /* ============================================================
+     7. BATCH SIZE SETTINGS
+     ============================================================ */
+  els.batchSizeBox.value = state.batchSizeLines.join("\n");
+  els.saveBatchSizesBtn.addEventListener("click", function(){
+    var list = els.batchSizeBox.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+    saveBatchSizeLines(list);
+    render();
+  });
+  els.resetBatchSizesBtn.addEventListener("click", function(){
+    els.batchSizeBox.value = DEFAULT_BATCH_SIZES.join("\n");
+    saveBatchSizeLines(DEFAULT_BATCH_SIZES.slice());
+    render();
+  });
+
+  /* ============================================================
+     8. PDF REPORT GENERATION (jsPDF — hand-drawn, no autotable)
+     ============================================================ */
+  var COLORS = {
+    ink:[26,23,18], muted:[130,120,100], line:[221,213,192],
+    gold:[240,180,41], goldInk:[36,26,0],
+    paint:[91,141,238], paintBg:[228,235,251],
+    rowAlt:[247,244,236]
+  };
+  var PAGE_W = 210, PAGE_H = 297, MARGIN = 15;
+
+  function newDoc(){
+    var jsPDF = window.jspdf.jsPDF;
+    return new jsPDF({ unit:"mm", format:"a4" });
+  }
+
+  function drawLetterhead(doc){
+    doc.setFillColor.apply(doc, COLORS.gold);
+    doc.circle(MARGIN + 5, 18, 5, "F");
+    doc.setTextColor.apply(doc, COLORS.ink);
+    doc.setFont("helvetica","bold"); doc.setFontSize(13);
+    doc.text("OLYMPIC PAINTS", MARGIN + 13, 16.5);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+    doc.setTextColor.apply(doc, COLORS.muted);
+    doc.text("28 Mecca Road, Anchorville, Lawley, Lenasia, Gauteng", MARGIN + 13, 20.5);
+
+    doc.setFontSize(7.5);
+    doc.text("Reg: CK:1997/064575/23", PAGE_W - MARGIN, 13, {align:"right"});
+    doc.text("VAT: 4580171264", PAGE_W - MARGIN, 17, {align:"right"});
+    doc.text("info@olympicpaints.co.za · 011 857 1045", PAGE_W - MARGIN, 21, {align:"right"});
+
+    doc.setDrawColor.apply(doc, COLORS.gold);
+    doc.setLineWidth(0.6);
+    doc.line(MARGIN, 26, PAGE_W - MARGIN, 26);
+  }
+
+  function drawFooter(doc, pageNum, pageCount, genAt){
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+    doc.setTextColor.apply(doc, COLORS.muted);
+    doc.text("Generated " + genAt + " · Restock Ledger", MARGIN, PAGE_H - 10);
+    doc.text("Page " + pageNum + " of " + pageCount, PAGE_W - MARGIN, PAGE_H - 10, {align:"right"});
+  }
+
+  function buildPdf(model){
+    var doc = newDoc();
+    var y = 34;
+    var genAt = new Date().toLocaleString();
+
+    drawLetterhead(doc);
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(19);
+    doc.setTextColor.apply(doc, COLORS.ink);
+    doc.text("Paint Production Requirement List", MARGIN, y); y += 6;
+
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
+    doc.setTextColor.apply(doc, COLORS.muted);
+    var batchRefs = model.batches.map(function(b){ return "#"+b.batchNo; }).join(", ");
+    doc.text("Outbound stock requirement, consolidated from " + model.batches.length +
+      " batch transfer" + (model.batches.length===1?"":"s") + " (" + batchRefs + ")", MARGIN, y);
+    y += 10;
+
+    // totals tiles
+    var sizes = PRIMARY_SIZES.filter(function(s){ return model.totals[s]; });
+    var extraSizes = Object.keys(model.totals).filter(function(s){ return PRIMARY_SIZES.indexOf(s)===-1; }).sort();
+    var allSizes = sizes.concat(extraSizes);
+    if (allSizes.length){
+      var tileW = (PAGE_W - 2*MARGIN - (allSizes.length-1)*4) / allSizes.length;
+      var tx = MARGIN;
+      doc.setFillColor(250, 246, 233); doc.setDrawColor.apply(doc, COLORS.line);
+      allSizes.forEach(function(sz){
+        doc.roundedRect(tx, y, tileW, 18, 2, 2, "FD");
+        doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor.apply(doc, COLORS.ink);
+        doc.text(fmtQty(model.totals[sz]), tx + tileW/2, y + 9, {align:"center"});
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor.apply(doc, COLORS.muted);
+        doc.text(sz, tx + tileW/2, y + 14.5, {align:"center"});
+        tx += tileW + 4;
+      });
+      y += 26;
+    }
+
+    y = drawLedgerTable(doc, y, model.rows, genAt);
+    y = drawBatchPlan(doc, y, model.batchPlan, genAt);
+
+    // batch dispatch schedule
+    y = ensureSpace(doc, y, 30, genAt);
+    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor.apply(doc, COLORS.ink);
+    doc.text("Batch Dispatch Schedule", MARGIN, y); y += 6;
+    var colX = [MARGIN, MARGIN+30, MARGIN+70];
+    doc.setFillColor.apply(doc, COLORS.ink); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F");
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+    doc.text("BATCH OUT #", colX[0]+2, y+4.8);
+    doc.text("SCHEDULED DATE", colX[1]+2, y+4.8);
+    doc.text("VEHICLE", colX[2]+2, y+4.8);
+    y += 7;
+    model.batches.forEach(function(b, i){
+      y = ensureSpace(doc, y, 8, genAt);
+      if (i % 2 === 1){ doc.setFillColor.apply(doc, COLORS.rowAlt); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F"); }
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc, COLORS.ink);
+      doc.text("#"+b.batchNo, colX[0]+2, y+4.8);
+      doc.setFont("helvetica","normal");
+      doc.text(String(b.scheduledDate||"—"), colX[1]+2, y+4.8);
+      doc.text(String(b.vehicle||"—"), colX[2]+2, y+4.8);
+      y += 7;
+    });
+
+    y += 6; y = ensureSpace(doc, y, 16, genAt);
+    doc.setDrawColor.apply(doc, COLORS.line); doc.setFillColor(240,247,240);
+    doc.roundedRect(MARGIN, y, PAGE_W-2*MARGIN, 14, 2, 2, "FD");
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(70,90,70);
+    var note = "Outbound verification: line items are consolidated from Odoo Batch Transfer PDFs (FROM OP/Stock TO Customers) across the batches listed above. Batch counts are demand ÷ BOM batch size — a decimal count means a full batch plus a proportionally scaled partial batch.";
+    doc.text(doc.splitTextToSize(note, PAGE_W-2*MARGIN-6), MARGIN+3, y+5.5);
+
+    // stamp page numbers now that total is known
+    var pageCount = doc.internal.getNumberOfPages();
+    for (var p=1;p<=pageCount;p++){
+      doc.setPage(p);
+      drawFooter(doc, p, pageCount, genAt);
+    }
+    return doc;
+  }
+
+  function ensureSpace(doc, y, needed, genAt){
+    if (y + needed > PAGE_H - 16){
+      doc.addPage();
+      drawLetterhead(doc);
+      return 34;
+    }
+    return y;
+  }
+
+  function drawLedgerTable(doc, y, rows, genAt){
+    if (!rows.length) return y;
+    y = ensureSpace(doc, y, 20, genAt);
+    doc.setFillColor.apply(doc, COLORS.paintBg);
+    doc.roundedRect(MARGIN, y-2, 58, 7, 1.5, 1.5, "F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor.apply(doc, COLORS.paint);
+    doc.text("PAINT REQUIREMENTS", MARGIN+3, y+2.6);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor.apply(doc, COLORS.muted);
+    doc.text(rows.length + " line item" + (rows.length===1?"":"s"), MARGIN+62, y+2.6);
+    y += 10;
+
+    var colX = [MARGIN, MARGIN+95, MARGIN+140];
+    function header(){
+      doc.setFillColor.apply(doc, COLORS.ink); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F");
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
+      doc.text("PRODUCT", colX[0]+2, y+4.8);
+      doc.text("QUANTITY ORDERED", colX[1]+2, y+4.8);
+      doc.text("BATCH OUT #", colX[2]+2, y+4.8);
+      y += 7;
+    }
+    header();
+
+    rows.forEach(function(r, i){
+      if (y + 7 > PAGE_H - 16){
+        doc.addPage(); drawLetterhead(doc); y = 34; header();
+      }
+      if (i % 2 === 1){ doc.setFillColor.apply(doc, COLORS.rowAlt); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F"); }
+      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor.apply(doc, COLORS.ink);
+      var label = r.name + " " + r.size;
+      doc.text(doc.splitTextToSize(label, 92)[0] || label, colX[0]+2, y+4.8);
+      doc.setFont("helvetica","normal"); doc.setFontSize(8);
+      doc.text(mathString(r.contrib), colX[1]+2, y+4.8);
+      doc.setTextColor.apply(doc, COLORS.muted); doc.setFontSize(7.5);
+      var refs = r.batchNos.map(function(n){ return "#"+n; }).join(" / ");
+      doc.text(doc.splitTextToSize(refs, 48)[0] || refs, colX[2]+2, y+4.8);
+      y += 7;
+    });
+
+    return y + 8;
+  }
+
+  function pdfBreakdown(r){
+    if (r.partialQty > 0.01){
+      return (r.fullBatches>0 ? (r.fullBatches + "+") : "") +
+        fmtQty(r.partialQty) + r.unit + " (" + fmtBatches(r.partialFrac) + "x)";
+    }
+    return r.fullBatches + " full, no partial";
+  }
+
+  function drawBatchPlan(doc, y, plan, genAt){
+    if (!plan.length) return y;
+    var unknownCount = plan.filter(function(r){ return r.batches === null; }).length;
+
+    y = ensureSpace(doc, y, 20, genAt);
+    doc.setFillColor.apply(doc, COLORS.gold);
+    doc.roundedRect(MARGIN, y-2, 50, 7, 1.5, 1.5, "F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor.apply(doc, COLORS.goldInk);
+    doc.text("BATCHES TO MAKE", MARGIN+3, y+2.6);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor.apply(doc, COLORS.muted);
+    doc.text(plan.length + " product" + (plan.length===1?"":"s") +
+      (unknownCount ? " (" + unknownCount + " missing a BOM batch size)" : ""), MARGIN+54, y+2.6);
+    y += 10;
+
+    var colX = [MARGIN, MARGIN+55, MARGIN+95, MARGIN+122, MARGIN+148];
+    function header(){
+      doc.setFillColor.apply(doc, COLORS.ink); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F");
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(7);
+      doc.text("PRODUCT", colX[0]+2, y+4.8);
+      doc.text("TOTAL QTY", colX[1]+2, y+4.8);
+      doc.text("BOM BATCH SIZE", colX[2]+2, y+4.8);
+      doc.text("BATCHES", colX[3]+2, y+4.8);
+      doc.text("HOW TO MAKE IT", colX[4]+2, y+4.8);
+      y += 7;
+    }
+    header();
+
+    plan.forEach(function(r, i){
+      if (y + 7 > PAGE_H - 16){ doc.addPage(); drawLetterhead(doc); y = 34; header(); }
+      var known = r.batches !== null;
+      if (i % 2 === 1){ doc.setFillColor.apply(doc, COLORS.rowAlt); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F"); }
+      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor.apply(doc, COLORS.ink);
+      doc.text(doc.splitTextToSize(r.name, 52)[0] || r.name, colX[0]+2, y+4.8);
+      doc.setFont("helvetica","normal");
+      doc.text(fmtQty(r.demand) + " " + r.unit, colX[1]+2, y+4.8);
+      if (known){
+        doc.text(fmtQty(r.batchSize) + " " + r.unit, colX[2]+2, y+4.8);
+        doc.setFont("helvetica","bold"); doc.setTextColor.apply(doc, COLORS.gold); doc.setFontSize(8.5);
+        doc.text(fmtBatches(r.batches), colX[3]+2, y+4.8);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor.apply(doc, COLORS.muted);
+        var bd = pdfBreakdown(r);
+        doc.text(doc.splitTextToSize(bd, 40)[0] || bd, colX[4]+2, y+4.8);
+      } else {
+        doc.setTextColor.apply(doc, COLORS.muted); doc.setFontSize(7);
+        doc.text("not set", colX[2]+2, y+4.8);
+        doc.text("—", colX[3]+2, y+4.8);
+        doc.text(doc.splitTextToSize("add batch size", 40)[0], colX[4]+2, y+4.8);
+      }
+      y += 7;
+    });
+
+    return y + 8;
+  }
+
+  /* ============================================================
+     9. PRINT FALLBACK VIEW
+     ============================================================ */
+  function renderPrintView(model){
+    var genAt = new Date().toLocaleString();
+    function ledgerTable(rows){
+      if (!rows.length) return "";
+      return "<table><thead><tr><th>Product</th><th>Quantity ordered</th><th>Batch Out #</th></tr></thead><tbody>" +
+        rows.map(function(r){
+          return "<tr><td>"+esc(r.name)+" "+esc(r.size)+"</td><td>"+esc(mathString(r.contrib))+"</td><td>"+
+            r.batchNos.map(function(n){return "#"+esc(n);}).join(" / ")+"</td></tr>";
+        }).join("") + "</tbody></table>";
+    }
+    var planTable = "";
+    if (model.batchPlan.length){
+      planTable = "<table><thead><tr><th>Product</th><th>Total quantity (all pack sizes)</th><th>BOM batch size</th><th>Batches to make</th><th>How to make it</th></tr></thead><tbody>" +
+        model.batchPlan.map(function(r){
+          var known = r.batches !== null;
+          return "<tr><td>"+esc(r.name)+"</td><td>"+fmtQty(r.demand)+" "+r.unit+"</td><td>"+
+            (known ? (fmtQty(r.batchSize)+" "+r.unit) : "not set") +
+            "</td><td>"+(known ? ("<b>"+fmtBatches(r.batches)+"</b>") : "—") +
+            "</td><td>"+(known ? batchBreakdown(r) : "Add a batch size for this product to get a batch count.")+"</td></tr>";
+        }).join("") + "</tbody></table>";
+    }
+
+    els.printReport.innerHTML =
+      "<h2>Olympic Paints &mdash; Paint Production Requirement List</h2>" +
+      "<p>Consolidated from " + model.batches.length + " batch transfer(s): " +
+      model.batches.map(function(b){return "#"+esc(b.batchNo);}).join(", ") + "<br>Generated " + genAt + "</p>" +
+      "<h3>Paint Requirements</h3>" + (ledgerTable(model.rows) || "<p>None</p>") +
+      "<h3>Batches To Make</h3>" + (planTable || "<p>Add batch sizes under &ldquo;Batch sizes (from your BOM)&rdquo; to see this.</p>");
+  }
+
+  /* ============================================================
+     10. ACTIONS
+     ============================================================ */
+  els.generateBtn.addEventListener("click", async function(){
+    var model = buildModel();
+    if (!model.rowCount) return;
+    els.generateBtn.disabled = true;
+    var oldLabel = els.generateBtn.textContent;
+    els.generateBtn.textContent = "Building…";
+    els.statusMsg.className = "status-msg";
+    els.statusMsg.textContent = "";
+    try{
+      var doc = buildPdf(model);
+      var blob = doc.output("blob");
+      var filename = "Paint-Production-Requirement-" + new Date().toISOString().slice(0,10) + ".pdf";
+
+      var isFramed = (function(){ try { return window.self !== window.top; } catch(e){ return true; } })();
+      var downloads = (window.claude && typeof window.claude.use === "function")
+        ? await window.claude.use("downloads") : null;
+
+      if (downloads){
+        try{
+          await downloads.save({ filename: filename, data: blob });
+          els.statusMsg.className = "status-msg ok";
+          els.statusMsg.textContent = "Saved " + filename;
+        }catch(err){
+          els.statusMsg.className = "status-msg err";
+          els.statusMsg.textContent = (err && err.code === "declined")
+            ? "Download cancelled."
+            : "Couldn't save automatically — use Print / Save as PDF instead.";
+        }
+      } else if (!isFramed){
+        // Standalone file opened directly in a browser tab — a plain blob download works here.
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+        els.statusMsg.className = "status-msg ok";
+        els.statusMsg.textContent = "Downloaded " + filename + " (check your browser's downloads).";
+      } else {
+        renderPrintView(model);
+        window.print();
+        els.statusMsg.textContent = "Downloads aren't enabled in this view — use your browser's print dialog to save as PDF.";
+      }
+    } catch(err){
+      els.statusMsg.className = "status-msg err";
+      els.statusMsg.textContent = "Couldn't generate the PDF: " + (err && err.message ? err.message : err);
+    } finally {
+      els.generateBtn.disabled = false;
+      els.generateBtn.textContent = oldLabel;
+    }
+  });
+
+  els.printBtn.addEventListener("click", function(){
+    var model = buildModel();
+    if (!model.rowCount) return;
+    renderPrintView(model);
+    window.print();
+  });
+
+  /* ============================================================
+     11. INIT
+     ============================================================ */
+  if (!pdfEngineReady){
+    els.statusMsg.className = "status-msg err";
+    els.statusMsg.textContent = "PDF engine failed to load — reload the page before adding batches.";
+  }
+  render();
+})();
+</script>
