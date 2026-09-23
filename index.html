@@ -137,8 +137,17 @@
 
   /* ---------- ledger ---------- */
   .dept{margin-top:26px;}
-  .dept-head{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .dept-details{margin-top:26px;}
+  .dept-head{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; cursor:pointer; list-style:none; user-select:none;}
+  .dept-head::-webkit-details-marker{display:none;}
   .dept-head h2{font-size:19px; font-weight:700;}
+  .dept-disclosure{width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid var(--muted-2); flex:0 0 auto; transition:transform .15s ease;}
+  .dept-details[open] > .dept-head .dept-disclosure{transform:rotate(180deg);}
+  .dept-details:not([open]) .table-scroll{display:none;}
+  .dept-details:not([open]) .tracker-body{display:none;}
+  .tracker-help{font-size:12.5px; color:var(--muted-2); margin:0 0 12px; max-width:70ch;}
+  .tracker-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+  .zero-row{opacity:.55;}
   .tag{font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:4px 9px; border-radius:999px;}
   .tag.paint{background:var(--paint-bg); color:var(--paint);}
   .dept-head .count{font-size:12px; color:var(--muted-2);}
@@ -250,6 +259,8 @@
 
   <div id="batchPlan" class="dept"></div>
 
+  <div id="dailyTracker" class="dept"></div>
+
   <div id="printReport"></div>
 </div>
 
@@ -267,6 +278,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 (function(){
@@ -555,11 +567,58 @@
     "Q.D Enamel Clear = 228 L",
     "Sanding Sealer = 211 L",
     "Spirit of Salt = 210 KG",
-    "Etch Primer = 139 L"
+    "Etch Primer = 139 L",
+    "3-In-1 Roof Paint Black = 595 L",
+    "3-In-1 Roof Paint Burgundy = 595 L",
+    "3-In-1 Roof Paint Charcoal = 607 L",
+    "3-In-1 Roof Paint Grey = 607 L",
+    "7-In-1 Acrylic Pva Espresso Grey = 535 L",
+    "7-In-1 Acrylic Pva Mushroom = 535 L",
+    "7-In-1 Acrylic Pva Night Sky = 535 L",
+    "7-In-1 Acrylic Pva Pebble Stone = 535 L",
+    "7-In-1 Acrylic Pva Rim Rock = 535 L",
+    "7-In-1 Acrylic Pva Sand Storm = 535 L",
+    "7-In-1 Acrylic Pva Silver Mist = 535 L",
+    "7-In-1 Acrylic Pva White = 500 L",
+    "All In One White = 862 L",
+    "Carbolineum = 596 L",
+    "Decor Apricot = 230 L",
+    "Decor Crisp Mint = 380 L",
+    "Eclipse Pva Dark Grey = 1300 L",
+    "Flat Enamel White = 1500 L",
+    "High Gloss Enamel B Blue = 504 L",
+    "High Gloss Enamel Cream = 1056 L",
+    "Lacquer Thinners = 1000 L",
+    "Master Decorators Black = 1300 L",
+    "Master Decorators Broken White = 1300 L",
+    "Master Decorators Jaipur = 1300 L",
+    "Natural Elegance Brilliant White = 650 L",
+    "Pick 'N Save Econo Black = 525 L",
+    "Pick 'N Save Econo Cream = 525 L",
+    "Pick 'N Save Econo G Brown = 525 L",
+    "Pick 'N Save Econo Pink = 525 L",
+    "Pick 'N Save Econo White = 1300 L",
+    "Putty = 980 KG",
+    "Q.D Enamel Matt Black = 650 L",
+    "Q.D Grey Oxide Primer Grey = 650 L",
+    "Q.D Primer Grey = 650 L",
+    "Ultimate Shine D Blue = 501 L",
+    "Ultimate Shine F Blue = 450 L",
+    "Ultimate Shine G Brown = 910 L",
+    "Ultimate Shine G Yellow = 600 L",
+    "Ultimate Shine L Blue = 600 L",
+    "Ultimate Shine L Brown = 450 L",
+    "Ultimate Shine Pink = 310 L",
+    "Ultimate Shine S Blue = 550 L",
+    "Ultimate Shine S Green = 600 L",
+    "Universal Roof Charcoal = 520 L",
+    "Waterbase Oxide Primer Red = 1050 L",
+    "Waterbased Plaster Primer White = 1050 L"
   ];
-  var LS_BATCHSIZES = "restockledger.batchsizes.v4";
+  var LS_BATCHSIZES = "restockledger.batchsizes.v5";
   var LS_BATCHES  = "restockledger.batches.v1";
   var LS_SEEDED   = "restockledger.seeded.v1";
+  var LS_MASTERORDER = "restockledger.masterorder.v1";
 
   // Odoo prints some colors as an abbreviation on the Batch Transfer PDF
   // (e.g. "S Red") but the BOM/batch-size list uses the full color name
@@ -580,10 +639,32 @@
     "high gloss enamel br green": "High Gloss Enamel Brilliant Green",
     "high gloss enamel b yellow": "High Gloss Enamel Bright Yellow",
     "high gloss enamel br yellow":"High Gloss Enamel Bright Yellow",
+    "high gloss enamel brill green":"High Gloss Enamel Brilliant Green",
     "q.d enamel s red":           "Q.D Enamel Signal Red",
     "qd enamel s red":            "Q.D Enamel Signal Red",
     "liberty pva cream":          "Eclipse Pva Cream",
-    "liberty pva white":          "Eclipse Pva White"
+    "liberty pva white":          "Eclipse Pva White",
+    "alkyd roof black":           "Alkyd Roof /Stoep Black",
+    "madalas choice pva cream":   "Eclipse Pva Cream",
+    // Hyper Steel tins use the same recipe as the plain Q.D Enamel color,
+    // just filled into different (Hyper Steel branded) tins -- confirmed
+    // by the user, round 4.
+    "hyper steel q.d enamel black":       "Q.D Enamel Black",
+    "hyper steel q.d enamel bronze":      "Q.D Enamel Bronze",
+    "hyper steel q.d enamel burgundy":    "Q.D Enamel Burgundy",
+    "hyper steel q.d enamel charcoal":    "Q.D Enamel Charcoal",
+    "hyper steel q.d enamel cream":       "Q.D Enamel Cream",
+    "hyper steel q.d enamel dark grey":   "Q.D Enamel Dark Grey",
+    "hyper steel q.d enamel green":       "Q.D Enamel Green",
+    "hyper steel q.d enamel royal blue":  "Q.D Enamel Royal Blue",
+    "hyper steel q.d enamel silver":      "Q.D Enamel Silver",
+    "hyper steel rainproof black":        "Rainproof Black",
+    "hyper steel uni roof black":         "Universal Roof Black"
+    // NOTE: "Q.D Grey Primer Grey" was aliased to "Q.D Enamel Grey" in the
+    // previous round, but the user corrected this (round 4): they are in
+    // fact two DIFFERENT products, not the same one under two names. The
+    // alias has been removed -- both now stay separate, unresolved gaps
+    // until their real batch sizes are confirmed.
   };
   function canonicalizeProductName(name){
     var key = (name || "").trim().toLowerCase();
@@ -629,6 +710,52 @@
     state.batchSizeLines = list;
     try{ localStorage.setItem(LS_BATCHSIZES, JSON.stringify(list)); }catch(e){}
   }
+
+  // Daily Production Tracker: a FIXED, append-only product row order, so an
+  // Excel/PDF export always lists the same product on the same line as last
+  // time -- essential for pasting a day's numbers straight into a running
+  // sheet you keep yourself. Seeded once from the BOM batch-size list (which
+  // already has a stable order); after that, a brand-new product name seen
+  // in a batch just gets appended at the END, never re-sorted, so every
+  // existing row keeps its position forever.
+  function loadMasterOrder(){
+    try{
+      var raw = localStorage.getItem(LS_MASTERORDER);
+      if (raw){ var arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) return arr; }
+    }catch(e){}
+    return null;
+  }
+  function saveMasterOrder(list){
+    try{ localStorage.setItem(LS_MASTERORDER, JSON.stringify(list)); }catch(e){}
+  }
+  function getMasterProductOrder(){
+    var stored = loadMasterOrder();
+    if (stored) return stored;
+    var seedNames = [];
+    var seen = {};
+    DEFAULT_BATCH_SIZES.forEach(function(line){
+      var m = line.match(/^(.+?)\s*=/);
+      if (!m) return;
+      var name = m[1].trim();
+      var key = name.toLowerCase();
+      if (!seen[key]){ seen[key] = 1; seedNames.push(name); }
+    });
+    saveMasterOrder(seedNames);
+    return seedNames;
+  }
+  function ensureInMasterOrder(names){
+    var order = getMasterProductOrder();
+    var known = {};
+    order.forEach(function(n){ known[n.toLowerCase()] = 1; });
+    var changed = false;
+    names.forEach(function(n){
+      var key = (n || "").trim().toLowerCase();
+      if (key && !known[key]){ order.push(n); known[key] = 1; changed = true; }
+    });
+    if (changed) saveMasterOrder(order);
+    return order;
+  }
+
   // "Decor Cream = 1500 L"  ->  { "decor cream": {qty:1500, unit:"L"} }
   var BATCHSIZE_LINE_RE = /^(.+?)\s*=\s*([\d.]+)\s*(L|LT|KG|LITRE?S?)?\s*$/i;
   function parseBatchSizeLines(lines){
@@ -792,9 +919,13 @@
 
     okBatches.forEach(function(b){
       b.lines.forEach(function(ln){
-        var key = ln.name + "||" + ln.size;
+        // Canonicalize here too, not just at parse time -- batches already
+        // sitting in localStorage from before an alias existed still carry
+        // their raw abbreviated name, so this is what actually merges them.
+        var canonName = canonicalizeProductName(ln.name);
+        var key = canonName + "||" + ln.size;
         if (!map[key]){
-          map[key] = { name: ln.name, size: ln.size, qty: 0, contrib: [], batchNos: [] };
+          map[key] = { name: canonName, size: ln.size, qty: 0, contrib: [], batchNos: [] };
         }
         map[key].qty += ln.qty;
         map[key].contrib.push({ batchNo: b.batchNo, qty: ln.qty });
@@ -828,9 +959,28 @@
   // can be scaled down proportionally, so 1.18 means "1 full batch, plus a
   // partial batch mixed at 18% of the recipe" rather than always rounding up
   // to a whole extra batch.
+  // Stainers are small tint bottles (50ML/100ML) dispensed by the millilitre,
+  // not mixed as a scaled-down batch of a bulk recipe -- they don't belong in
+  // a "how many 1500L batches do I run" plan, so they're excluded entirely
+  // rather than shown as "no batch size on file".
+  function isStainer(name){
+    return /\bstainers?\b/i.test(name);
+  }
+  // Raw pigments and a couple of other lines the user confirmed aren't
+  // "batched" the way a finished paint is (round 4: "u can remove this") --
+  // excluded from Batches To Make the same way Stainers are, rather than
+  // shown as a permanent "no batch size on file" gap.
+  var NOT_BATCHED = {
+    "oxide black": 1, "oxide brown": 1, "oxide green": 1,
+    "oxide red": 1, "oxide yellow": 1, "paint remover": 1
+  };
+  function isNotBatched(name){
+    return !!NOT_BATCHED[(name || "").trim().toLowerCase()];
+  }
   function buildBatchPlan(rows){
     var byName = {}; // lower name -> {name,unit,demand,skipped:[]}
     rows.forEach(function(r){
+      if (isStainer(r.name) || isNotBatched(r.name)) return;
       var base = sizeToBase(r.size);
       var key = r.name.toLowerCase();
       if (!byName[key]){
@@ -870,6 +1020,38 @@
 
     plan.sort(function(a,b){ return a.name.localeCompare(b.name); });
     return plan;
+  }
+
+  // Daily Production Tracker: today's demand per product, in the FIXED master
+  // row order -- unlike Batches To Make, nothing is excluded here (Stainers,
+  // Oxide pigments and the like are exactly the small quantities this is for
+  // tracking until they build up to a worthwhile batch).
+  function buildDailyTrackerRows(rows){
+    var byName = {}; // lower name -> {name,unit,demand}
+    rows.forEach(function(r){
+      var base = sizeToBase(r.size);
+      var key = r.name.toLowerCase();
+      if (!byName[key]) byName[key] = { name: r.name, unit: null, demand: 0 };
+      var entry = byName[key];
+      if (base && (!entry.unit || base.unit === entry.unit)){
+        entry.unit = base.unit;
+        entry.demand += base.qty * r.qty;
+      }
+    });
+
+    var sizeMap = parseBatchSizeLines(state.batchSizeLines);
+    var order = ensureInMasterOrder(Object.keys(byName).map(function(k){ return byName[k].name; }));
+
+    return order.map(function(name){
+      var key = name.toLowerCase();
+      var e = byName[key];
+      var ref = sizeMap[key];
+      return {
+        name: name,
+        unit: (e && e.unit) || (ref ? ref.unit : "L"),
+        qty: e ? Math.round(e.demand * 100) / 100 : 0
+      };
+    });
   }
 
   function fmtQty(n){
@@ -916,6 +1098,7 @@
     totals: document.getElementById("totals"),
     ledger: document.getElementById("ledger"),
     batchPlan: document.getElementById("batchPlan"),
+    dailyTracker: document.getElementById("dailyTracker"),
     batchSizeBox: document.getElementById("batchSizeBox"),
     saveBatchSizesBtn: document.getElementById("saveBatchSizesBtn"),
     resetBatchSizesBtn: document.getElementById("resetBatchSizesBtn"),
@@ -964,6 +1147,11 @@
     }).join("");
   }
 
+  // Whether the Paint Requirements section is expanded -- remembered across
+  // re-renders (e.g. adding another batch) so it doesn't snap shut on you.
+  var paintReqOpen = false;
+  var trackerOpen = false;
+
   function renderLedger(container, rows){
     if (rows.length === 0){ container.innerHTML = ""; return; }
     var body = rows.map(function(r){
@@ -975,11 +1163,21 @@
     }).join("");
 
     container.innerHTML =
-      '<div class="dept-head"><h2>Paint Requirements</h2>' +
-      '<span class="tag paint">' + rows.length + ' line item' + (rows.length===1?"":"s") + '</span></div>' +
+      '<details class="dept-details"' + (paintReqOpen ? ' open' : '') + '>' +
+      '<summary class="dept-head">' +
+        '<span class="dept-disclosure" aria-hidden="true"></span>' +
+        '<h2>Paint Requirements</h2>' +
+        '<span class="tag paint">' + rows.length + ' line item' + (rows.length===1?"":"s") + '</span>' +
+      '</summary>' +
       '<div class="table-scroll"><table class="ledger-table"><thead><tr>' +
       '<th>Product</th><th>Quantity ordered</th><th>Batch out #</th>' +
-      '</tr></thead><tbody>' + body + '</tbody></table></div>';
+      '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '</details>';
+
+    var detailsEl = container.querySelector(".dept-details");
+    if (detailsEl){
+      detailsEl.addEventListener("toggle", function(){ paintReqOpen = detailsEl.open; });
+    }
   }
 
   function renderBatchPlan(plan){
@@ -1009,12 +1207,61 @@
         : '');
   }
 
+  // "Today" = whatever batches are currently loaded in the app. Every product
+  // ever seen gets a row, in the same fixed order every time (see
+  // ensureInMasterOrder) -- rows with nothing dispatched today just show 0,
+  // rather than disappearing, so the row count/order never shifts.
+  function renderDailyTracker(trackerRows){
+    if (!els.dailyTracker) return;
+    if (!trackerRows.length){ els.dailyTracker.innerHTML = ""; return; }
+    var todayLabel = new Date().toLocaleDateString("en-ZA", { day:"2-digit", month:"short", year:"numeric" });
+    var withDemand = trackerRows.filter(function(r){ return r.qty > 0; }).length;
+
+    var body = trackerRows.map(function(r){
+      return '<tr' + (r.qty > 0 ? '' : ' class="zero-row"') + '>' +
+        '<td><div class="prod-name">' + esc(r.name) + '</div></td>' +
+        '<td class="qty-cell">' + (r.qty > 0 ? ('<b>' + fmtQty(r.qty) + '</b> ' + esc(r.unit)) : '<span class="muted-cell">0</span>') + '</td>' +
+        '</tr>';
+    }).join("");
+
+    els.dailyTracker.innerHTML =
+      '<details class="dept-details"' + (trackerOpen ? ' open' : '') + '>' +
+      '<summary class="dept-head">' +
+        '<span class="dept-disclosure" aria-hidden="true"></span>' +
+        '<h2>Daily Production Tracker</h2>' +
+        '<span class="tag paint">' + trackerRows.length + ' products &middot; ' + withDemand + ' with demand today</span>' +
+      '</summary>' +
+      '<div class="tracker-body">' +
+      '<p class="tracker-help">Every product your BOM knows about, in the same fixed row every time &mdash; download today\'s column (' + esc(todayLabel) + ') and paste it straight into your own running sheet. A new product you haven\'t seen before gets appended at the end, so existing rows never move.</p>' +
+      '<div class="tracker-actions">' +
+        '<button class="btn btn-line" id="trackerXlsxBtn" type="button">Download Excel (.xlsx)</button>' +
+        '<button class="btn btn-line" id="trackerPdfBtn" type="button">Download PDF</button>' +
+        '<span class="status-msg" id="trackerStatusMsg"></span>' +
+      '</div>' +
+      '<div class="table-scroll"><table class="ledger-table"><thead><tr>' +
+      '<th>Product</th><th>' + esc(todayLabel) + '</th>' +
+      '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '</div>' +
+      '</details>';
+
+    var detailsEl = els.dailyTracker.querySelector(".dept-details");
+    if (detailsEl){
+      detailsEl.addEventListener("toggle", function(){ trackerOpen = detailsEl.open; });
+    }
+    var xlsxBtn = document.getElementById("trackerXlsxBtn");
+    var pdfBtn = document.getElementById("trackerPdfBtn");
+    var statusEl = document.getElementById("trackerStatusMsg");
+    if (xlsxBtn) xlsxBtn.addEventListener("click", function(){ exportDailyTrackerXlsx(trackerRows, statusEl); });
+    if (pdfBtn) pdfBtn.addEventListener("click", function(){ exportDailyTrackerPdf(trackerRows, statusEl); });
+  }
+
   function render(){
     renderBatchList();
     var model = buildModel();
     renderTotals(model);
     renderLedger(els.ledger, model.rows);
     renderBatchPlan(model.batchPlan);
+    renderDailyTracker(buildDailyTrackerRows(model.rows));
 
     var errCount = state.batches.filter(function(b){ return b.status==="error"; }).length;
     els.lineCount.textContent = model.rowCount;
@@ -1380,6 +1627,126 @@
       model.batches.map(function(b){return "#"+esc(b.batchNo);}).join(", ") + "<br>Generated " + genAt + "</p>" +
       "<h3>Paint Requirements</h3>" + (ledgerTable(model.rows) || "<p>None</p>") +
       "<h3>Batches To Make</h3>" + (planTable || "<p>Add batch sizes under &ldquo;Batch sizes (from your BOM)&rdquo; to see this.</p>");
+  }
+
+  /* ============================================================
+     9b. DAILY PRODUCTION TRACKER EXPORTS (Excel + PDF)
+     ============================================================ */
+  // Shared with the Batches-To-Make PDF button: try the sandboxed downloads
+  // API first, fall back to a plain blob-download link, fall back to print.
+  async function saveBlobFile(blob, filename, statusEl){
+    var isFramed = (function(){ try { return window.self !== window.top; } catch(e){ return true; } })();
+    var downloads = (window.claude && typeof window.claude.use === "function")
+      ? await window.claude.use("downloads") : null;
+
+    if (downloads){
+      try{
+        await downloads.save({ filename: filename, data: blob });
+        if (statusEl){ statusEl.className = "status-msg ok"; statusEl.textContent = "Saved " + filename; }
+        return true;
+      }catch(err){
+        if (statusEl){
+          statusEl.className = "status-msg err";
+          statusEl.textContent = (err && err.code === "declined") ? "Download cancelled." : "Couldn't save automatically.";
+        }
+        return false;
+      }
+    } else if (!isFramed){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      if (statusEl){ statusEl.className = "status-msg ok"; statusEl.textContent = "Downloaded " + filename + "."; }
+      return true;
+    } else {
+      if (statusEl){ statusEl.className = "status-msg err"; statusEl.textContent = "Downloads aren't enabled in this view."; }
+      return false;
+    }
+  }
+
+  function trackerFilenameStem(){
+    return "Daily-Production-Tracker-" + new Date().toISOString().slice(0,10);
+  }
+
+  function buildDailyTrackerWorkbook(rows){
+    var todayLabel = new Date().toLocaleDateString("en-ZA", { day:"2-digit", month:"short", year:"numeric" });
+    var wsData = [
+      ["Olympic Paints -- Daily Production Tracker"],
+      ["Generated " + new Date().toLocaleString()],
+      [],
+      ["Product", "Unit", todayLabel]
+    ];
+    rows.forEach(function(r){ wsData.push([r.name, r.unit, r.qty]); });
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 42 }, { wch: 8 }, { wch: 14 }];
+    ws["!merges"] = [
+      { s:{r:0,c:0}, e:{r:0,c:2} },
+      { s:{r:1,c:0}, e:{r:1,c:2} }
+    ];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Daily Tracker");
+    return wb;
+  }
+
+  async function exportDailyTrackerXlsx(rows, statusEl){
+    if (typeof XLSX === "undefined"){
+      if (statusEl){ statusEl.className = "status-msg err"; statusEl.textContent = "Excel engine failed to load -- reload the page with a connection."; }
+      return;
+    }
+    try{
+      var wb = buildDailyTrackerWorkbook(rows);
+      var out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      var blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      await saveBlobFile(blob, trackerFilenameStem() + ".xlsx", statusEl);
+    }catch(err){
+      if (statusEl){ statusEl.className = "status-msg err"; statusEl.textContent = "Couldn't build the Excel file: " + (err && err.message ? err.message : err); }
+    }
+  }
+
+  function buildDailyTrackerPdf(rows){
+    var doc = newDoc();
+    var genAt = new Date().toLocaleString();
+    var todayLabel = new Date().toLocaleDateString("en-ZA", { day:"2-digit", month:"short", year:"numeric" });
+    drawLetterhead(doc);
+    var y = 34;
+    doc.setFont("helvetica","bold"); doc.setFontSize(19); doc.setTextColor.apply(doc, COLORS.ink);
+    doc.text("Daily Production Tracker", MARGIN, y); y += 6;
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor.apply(doc, COLORS.muted);
+    doc.text("Every product on file, fixed row order, column for " + todayLabel, MARGIN, y); y += 10;
+
+    var colX = [MARGIN, MARGIN + 130];
+    function header(){
+      doc.setFillColor.apply(doc, COLORS.ink); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F");
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+      doc.text("PRODUCT", colX[0]+2, y+4.8);
+      doc.text(todayLabel.toUpperCase(), colX[1]+2, y+4.8);
+      y += 7;
+    }
+    header();
+    rows.forEach(function(r, i){
+      if (y + 7 > PAGE_H - 16){ doc.addPage(); drawLetterhead(doc); y = 34; header(); }
+      if (i % 2 === 1){ doc.setFillColor.apply(doc, COLORS.rowAlt); doc.rect(MARGIN, y, PAGE_W-2*MARGIN, 7, "F"); }
+      doc.setFont("helvetica", r.qty > 0 ? "bold" : "normal"); doc.setFontSize(8.5);
+      doc.setTextColor.apply(doc, r.qty > 0 ? COLORS.ink : COLORS.muted);
+      doc.text(doc.splitTextToSize(r.name, 122)[0] || r.name, colX[0]+2, y+4.8);
+      doc.text(r.qty > 0 ? (fmtQty(r.qty) + " " + r.unit) : "0", colX[1]+2, y+4.8);
+      y += 7;
+    });
+
+    var pageCount = doc.internal.getNumberOfPages();
+    for (var p=1;p<=pageCount;p++){ doc.setPage(p); drawFooter(doc, p, pageCount, genAt); }
+    return doc;
+  }
+
+  async function exportDailyTrackerPdf(rows, statusEl){
+    try{
+      var doc = buildDailyTrackerPdf(rows);
+      var blob = doc.output("blob");
+      await saveBlobFile(blob, trackerFilenameStem() + ".pdf", statusEl);
+    }catch(err){
+      if (statusEl){ statusEl.className = "status-msg err"; statusEl.textContent = "Couldn't generate the PDF: " + (err && err.message ? err.message : err); }
+    }
   }
 
   /* ============================================================
